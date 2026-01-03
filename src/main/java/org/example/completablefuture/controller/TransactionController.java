@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Semaphore;
 import java.util.stream.IntStream;
 
 @RestController
@@ -19,6 +20,8 @@ public class TransactionController {
     private final BankService bankService;
     private final Executor virtualThreadExecutor;
     private final Executor fixedThreadExecutor;
+
+    private final Semaphore semaphore = new Semaphore(50); // Giới hạn đồng thời 50 tasks
 
     public TransactionController(BankService bankService,
                                  @Qualifier("virtualThreadExecutor") Executor virtualThreadExecutor,
@@ -50,7 +53,18 @@ public class TransactionController {
         // 1. Tạo danh sách 1,000 tasks
         List<CompletableFuture<String>> futures = IntStream.range(0, totalTasks)
                 .mapToObj(i -> CompletableFuture.supplyAsync(
-                        () -> bankService.processTransaction("TX-" + i),
+                        () -> {
+                            try {
+                                // Giới hạn số lượng task đồng thời
+                                semaphore.acquire();
+                                return bankService.processTransaction("TX-" + i);
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                throw new RuntimeException("Bị gián đoạn");
+                            } finally {
+                                semaphore.release();
+                            }
+                        },
                         executor // Sử dụng custom executor ở đây
                 ).exceptionally(ex -> "Lỗi giao dịch: " + ex.getMessage()))
                 .toList();

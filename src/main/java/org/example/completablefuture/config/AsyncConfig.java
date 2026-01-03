@@ -6,6 +6,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 
 @Configuration
 public class AsyncConfig {
@@ -22,6 +23,8 @@ public class AsyncConfig {
         executor.setMaxPoolSize(100);
         executor.setQueueCapacity(1000);
         executor.setThreadNamePrefix("BankPool-");
+        // CHIẾN LƯỢC SENIOR: Tránh RejectedExecutionException
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         executor.initialize();
         return executor;
     }

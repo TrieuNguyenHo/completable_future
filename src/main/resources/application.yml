@@ -1,3 +1,6 @@
 spring:
   application:
     name: CompletableFuture
+  threads:
+    virtual:
+      enabled: true
